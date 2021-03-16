@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+const childProcess = require('child_process');
 const rsync = require('rsync');
 const bent = require('bent');
 
@@ -45,29 +46,69 @@ export class XenLiveClient {
         else if (remoteConfig.widgetType.length === 0) {
             throw new Error('Widget type not set!');
         }
+        else if (process.platform == 'win32' && remoteConfig.cwrsyncBinPath.length === 0) {
+            throw new Error('cwrsync Bin Path needs to be set on Windows!');
+        }
         remoteConfig.widgetPath = `/var/mobile/Library/Widgets/${remoteConfig.widgetType}/${remoteConfig.widgetName}/`;
         return remoteConfig;
+    }
+
+    private getLocalConfig() {
+        // Get config and validate.
+        const localConfig: any = vscode.workspace.getConfiguration('xenlive-edit').get('local');
+        if (process.platform == 'win32' && localConfig.cwrsyncBinPath.length === 0) {
+            throw new Error('cwrsync Bin Path needs to be set on Windows!');
+        }
+        if (localConfig.cwrsyncBinPath.endsWith('\\'))
+        localConfig.cwrsyncBinPath.pop();
+        return localConfig;
     }
 
     private async runSync() {
         // Rsync the workspace's root folder with the remote's folder.
         const remoteConfig = this.getRemoteConfig();
+        const localConfig = this.getLocalConfig();
         // All ok, perform sync.
-        const sync = new rsync().flags('rl')
-                                .set('delete')
-                                // '/' syncs the content without the folder.
-                                .source(this.#rootFolder!.fsPath + '/')
-                                .destination(`mobile@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}`);
-        return await (new Promise((res, rej) => {
-            sync.execute((err: string) => {
-                if (err) {
-                    rej(err);
-                }
-                else {
-                    res(true);
-                }
-            });
-        }));
+        const sourcePath = `//localhost/C$${this.#rootFolder!.path.split(':')[1]}/`;
+        // Use root to prevent perms denied, we restore file ownership to mobile in rsync.
+        const destPath = `'root@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}'`;
+        console.log(`rsync [${process.platform}] ${sourcePath} -> ${destPath}`)
+        if (process.platform === 'win32') {
+            const rsyncPath = `${localConfig.cwrsyncBinPath}\\rsync`; // don't use quotes here
+            const sshPath = `'${localConfig.cwrsyncBinPath}\\ssh'`;
+            console.log(`win32 rsync: ${rsyncPath}, ssh: ${sshPath}`)
+            return await (new Promise((res, rej) => {
+                childProcess.execFile(rsyncPath,
+                                ['-rl', '-o', '--chown=mobile', '--delete', '-e', sshPath, sourcePath, destPath],
+                                (err: string) => {
+                                    if (err) {
+                                        rej(err);
+                                    }
+                                    else {
+                                        res(true);
+                                    }
+                                })
+            }));
+        }
+        else {
+            // Works on macOS, should be fine on Linux as well.
+            const sync = new rsync().flags('rlo')
+                                    .set('delete')
+                                    .set('chown', 'mobile')
+                                    // '/' syncs the content without the folder.
+                                    .source(this.#rootFolder!.fsPath + '/')
+                                    .destination(`mobile@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}`);
+            return await (new Promise((res, rej) => {
+                sync.execute((err: string) => {
+                    if (err) {
+                        rej(err);
+                    }
+                    else {
+                        res(true);
+                    }
+                });
+            }));
+        }
     }
 
     private async postToRemoteForReload(isConfigFile: boolean) {
