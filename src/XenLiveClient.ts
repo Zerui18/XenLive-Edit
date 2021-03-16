@@ -46,7 +46,7 @@ export class XenLiveClient {
         else if (remoteConfig.widgetType.length === 0) {
             throw new Error('Widget type not set!');
         }
-        else if (process.platform == 'win32' && remoteConfig.cwrsyncBinPath.length === 0) {
+        else if (process.platform === 'win32' && remoteConfig.cwrsyncBinPath.length === 0) {
             throw new Error('cwrsync Bin Path needs to be set on Windows!');
         }
         remoteConfig.widgetPath = `/var/mobile/Library/Widgets/${remoteConfig.widgetType}/${remoteConfig.widgetName}/`;
@@ -56,11 +56,12 @@ export class XenLiveClient {
     private getLocalConfig() {
         // Get config and validate.
         const localConfig: any = vscode.workspace.getConfiguration('xenlive-edit').get('local');
-        if (process.platform == 'win32' && localConfig.cwrsyncBinPath.length === 0) {
+        if (process.platform === 'win32' && localConfig.cwrsyncBinPath.length === 0) {
             throw new Error('cwrsync Bin Path needs to be set on Windows!');
         }
-        if (localConfig.cwrsyncBinPath.endsWith('\\'))
-        localConfig.cwrsyncBinPath.pop();
+        if (localConfig.cwrsyncBinPath.endsWith('\\')) {
+            localConfig.cwrsyncBinPath.pop();
+        }
         return localConfig;
     }
 
@@ -72,11 +73,12 @@ export class XenLiveClient {
         const sourcePath = `//localhost/C$${this.#rootFolder!.path.split(':')[1]}/`;
         // Use root to prevent perms denied, we restore file ownership to mobile in rsync.
         const destPath = `'root@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}'`;
-        console.log(`rsync [${process.platform}] ${sourcePath} -> ${destPath}`)
+        console.log(`rsync [${process.platform}] ${sourcePath} -> ${destPath}`);
+        // Different stuff works on different platforms.
         if (process.platform === 'win32') {
             const rsyncPath = `${localConfig.cwrsyncBinPath}\\rsync`; // don't use quotes here
             const sshPath = `'${localConfig.cwrsyncBinPath}\\ssh'`;
-            console.log(`win32 rsync: ${rsyncPath}, ssh: ${sshPath}`)
+            console.log(`win32 rsync: ${rsyncPath}, ssh: ${sshPath}`);
             return await (new Promise((res, rej) => {
                 childProcess.execFile(rsyncPath,
                                 ['-rl', '-o', '--chown=mobile', '--delete', '-e', sshPath, sourcePath, destPath],
@@ -87,7 +89,7 @@ export class XenLiveClient {
                                     else {
                                         res(true);
                                     }
-                                })
+                                });
             }));
         }
         else {
@@ -97,7 +99,7 @@ export class XenLiveClient {
                                     .set('chown', 'mobile')
                                     // '/' syncs the content without the folder.
                                     .source(this.#rootFolder!.fsPath + '/')
-                                    .destination(`mobile@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}`);
+                                    .destination(`root@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}`);
             return await (new Promise((res, rej) => {
                 sync.execute((err: string) => {
                     if (err) {

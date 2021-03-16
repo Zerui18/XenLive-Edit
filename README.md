@@ -13,7 +13,7 @@ Live reloading of XenHTML widget on your iOS device as you edit!
 * Install the `XenLive` tweak from [My Repo](https://zerui18.github.io/zx02/) on your iOS device to start editing!
 
 ## Installing RSync
-For macOS & Ubuntu users, you can install `rsync` with your package manager of choice.
+For macOS & Ubuntu users, you can install `rsync` with your package manager of choice. Ensure that you have the latest version installed: `rsync --version` should give at least version 3.x.x.
 
 For Windows users, you will need to [download cwrsync](https://itefix.net/dl/free-software/cwrsync_6.2.1_x64_free.zip), unzip the contents somewhere and set the `xenlive-edit.remote.cwrsyncBinPath` to point to the bin directory.
 
