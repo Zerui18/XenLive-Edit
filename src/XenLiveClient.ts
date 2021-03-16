@@ -70,15 +70,15 @@ export class XenLiveClient {
         const remoteConfig = this.getRemoteConfig();
         const localConfig = this.getLocalConfig();
         // All ok, perform sync.
-        const sourcePath = `//localhost/C$${this.#rootFolder!.path.split(':')[1]}/`;
-        // Use root to prevent perms denied, we restore file ownership to mobile in rsync.
-        const destPath = `'root@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}'`;
-        console.log(`rsync [${process.platform}] ${sourcePath} -> ${destPath}`);
         // Different stuff works on different platforms.
         if (process.platform === 'win32') {
+            const sourcePath = `//localhost/C$${this.#rootFolder!.path.split(':')[1]}/`;
+            // Use root to prevent perms denied, we restore file ownership to mobile in rsync.
+            const destPath = `'root@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}'`;
+            console.log(`rsync [${process.platform}] ${sourcePath} -> ${destPath}`);
             const rsyncPath = `${localConfig.cwrsyncBinPath}\\rsync`; // don't use quotes here
             const sshPath = `'${localConfig.cwrsyncBinPath}\\ssh'`;
-            console.log(`win32 rsync: ${rsyncPath}, ssh: ${sshPath}`);
+            console.log(`win32 rsync: ${sourcePath} -> ${destPath}, bins:${rsyncPath} ${sshPath}`);
             return await (new Promise((res, rej) => {
                 childProcess.execFile(rsyncPath,
                                 ['-rl', '-o', '--chown=mobile', '--delete', '-e', sshPath, sourcePath, destPath],
@@ -94,12 +94,15 @@ export class XenLiveClient {
         }
         else {
             // Works on macOS, should be fine on Linux as well.
+            const sourcePath = this.#rootFolder!.fsPath + '/';
+            const destPath = `root@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}`;
             const sync = new rsync().flags('rlo')
                                     .set('delete')
                                     .set('chown', 'mobile')
                                     // '/' syncs the content without the folder.
-                                    .source(this.#rootFolder!.fsPath + '/')
-                                    .destination(`root@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}`);
+                                    .source(sourcePath)
+                                    .destination(destPath);
+            console.log(`${process.platform} rsync: ${sourcePath} -> ${destPath}`);
             return await (new Promise((res, rej) => {
                 sync.execute((err: string) => {
                     if (err) {
