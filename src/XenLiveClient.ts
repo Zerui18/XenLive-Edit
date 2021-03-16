@@ -39,12 +39,13 @@ export class XenLiveClient {
         if (remoteConfig.deviceIP.length === 0) {
             throw new Error('Device IP not set!');
         }
-        else if (remoteConfig.widgetPath.length === 0) {
-            throw new Error('Widget path not set!');
-        }
         else if (remoteConfig.widgetName.length === 0) {
             throw new Error('Widget name not set!');
         }
+        else if (remoteConfig.widgetType.length === 0) {
+            throw new Error('Widget type not set!');
+        }
+        remoteConfig.widgetPath = `/var/mobile/Library/Widgets/${remoteConfig.widgetType}/${remoteConfig.widgetName}/`;
         return remoteConfig;
     }
 
