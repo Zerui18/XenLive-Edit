@@ -6,6 +6,10 @@ This is the companion VSCode extension to the tweak `XenLive`.
 
 Live reloading of XenHTML widget on your iOS device as you edit!
 
+**XenLive syncs the changes to your device when you save the file.**
+
+To avoid always manually saving, definitely checkout vscode's `file.autoSave`! For instant hot-reloading, set `file.autoSave` to `afterDelay` and `file.autoSaveDelay` to `1`ms!
+
 # Requirements
 
 * Only XenHTML v2 and above are supported.
@@ -31,8 +35,8 @@ For **macOS & Ubuntu** users:
 * You can test if setup is successful by ssh-ing into your iOS device as `root` without a password.
 
 For **Windows** users:
-* `scp ~/.ssh/id_rsa.pub root@ideviceip:/tmp/ida_rsa.pub` to copy the public key to your iOS device.
-* SSH into you iOS device as `root` and run `cat /tmp/ida_rsa.pub >> ~/.ssh/authorized_keys` to add your pc's public key to authorized keys.
+* `scp ~/.ssh/id_rsa.pub root@ideviceip:/tmp/id_rsa.pub` to copy the public key to your iOS device.
+* SSH into you iOS device as `root` and run `cat /tmp/id_rsa.pub >> ~/.ssh/authorized_keys` to add your pc's public key to authorized keys.
 
 # Extension Settings
 
@@ -45,6 +49,10 @@ The following 4 settings are required for XenLive-Edit:
 **The following 2 settings should only be set at `Workspace` level, as they are unique for each workspace.**
 * `xenlive-edit.remote.widgetName`: The name of the widget being edited.
 * `xenlive-edit.remote.widgetType`: The type of the widget being edited.
+
+# Take Note
+
+XenLive needs to be enabled via the `XenLive Edit: Enable` command everytime a workspace is opened, otherwise nothing would happen.
 
 # Known Issues
 

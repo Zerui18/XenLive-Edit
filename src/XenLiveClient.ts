@@ -46,9 +46,6 @@ export class XenLiveClient {
         else if (remoteConfig.widgetType.length === 0) {
             throw new Error('Widget type not set!');
         }
-        else if (process.platform === 'win32' && remoteConfig.cwrsyncBinPath.length === 0) {
-            throw new Error('cwrsync Bin Path needs to be set on Windows!');
-        }
         remoteConfig.widgetPath = `/var/mobile/Library/Widgets/${remoteConfig.widgetType}/${remoteConfig.widgetName}/`;
         return remoteConfig;
     }
