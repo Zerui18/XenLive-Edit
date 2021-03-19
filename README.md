@@ -34,9 +34,15 @@ For **macOS & Ubuntu** users:
 * `ssh-copy-id root@ideviceip` to copy the public key onto your iOS device.
 * You can test if setup is successful by ssh-ing into your iOS device as `root` without a password.
 
-For **Windows** users:
+For **Windows 10** users:
 * `scp ~/.ssh/id_rsa.pub root@ideviceip:/tmp/id_rsa.pub` to copy the public key to your iOS device.
 * SSH into you iOS device as `root` and run `cat /tmp/id_rsa.pub >> ~/.ssh/authorized_keys` to add your pc's public key to authorized keys.
+**Note: Windows 10 has built-in ssh, use THE Command Prompt and THE built in scp/ssh.**
+
+For **Windows 7** users:
+* There's no built-in ssh capability. Use the `ssh-keygen` binary found in cwrsync/bin.
+* Copy the public key, aka `~/.ssh/id_rsa.pub`, onto your iOS device through any preferred means.
+* In the shell on your iOS device, or an ssh session, run `cat /path/to/your/id_rsa.pub >> ~/.ssh/authorized_keys`.
 
 # Extension Settings
 
