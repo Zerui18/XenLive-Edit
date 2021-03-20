@@ -1,5 +1,8 @@
 {
   "publisher": "zx02",
+  "repository": {
+    "url": "https://github.com/Zerui18/XenLive-Edit.git"
+  },
   "name": "xenlive-edit",
   "displayName": "xenlive-edit",
   "description": "Client extension that communciates with XenLive on your iOS device.",
