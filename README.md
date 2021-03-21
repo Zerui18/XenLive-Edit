@@ -63,6 +63,8 @@ The following 4 settings are required for XenLive-Edit:
 
 XenLive needs to be enabled via the `XenLive Edit: Enable` command everytime a workspace is opened, otherwise nothing would happen.
 
+For a short demo please view [this video](https://www.youtube.com/watch?v=6BxoA_d3xUc).
+
 # Known Issues
 
 TBD
@@ -140,6 +142,8 @@ XenLive Edit需要能够在以ssh访问iOS设备时无需密码。
 
 每打开工作区时需重新执行 `XenLive Edit: Enable` 以开启同步。
 
+使用流程请见[短视频](https://www.bilibili.com/video/BV1Sh411Q7NS)。
+
 # 已知问题
 
 暂无
@@ -149,3 +153,4 @@ XenLive Edit需要能够在以ssh访问iOS设备时无需密码。
 # 版本日志
 
 * *1.0.0*： 第一版发布
+* *1.0.1* : 优化

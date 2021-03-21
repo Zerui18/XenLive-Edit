@@ -78,7 +78,7 @@ export class XenLiveClient {
             console.log(`win32 rsync: ${sourcePath} -> ${destPath}, bins:${rsyncPath} ${sshPath}`);
             return await (new Promise((res, rej) => {
                 childProcess.execFile(rsyncPath,
-                                ['-rl', '-o', '--chown=mobile', '--delete', '-e', sshPath, sourcePath, destPath],
+                                ['-rl', '-o', '--usermap="*:mobile"', '--delete', '-e', sshPath, sourcePath, destPath],
                                 (err: string) => {
                                     if (err) {
                                         rej(err);
@@ -93,22 +93,18 @@ export class XenLiveClient {
             // Works on macOS, should be fine on Linux as well.
             const sourcePath = this.#rootFolder!.fsPath + '/';
             const destPath = `root@${remoteConfig.deviceIP}:${remoteConfig.widgetPath}`;
-            const sync = new rsync().flags('rlo')
-                                    .set('delete')
-                                    .set('chown', 'mobile')
-                                    // '/' syncs the content without the folder.
-                                    .source(sourcePath)
-                                    .destination(destPath);
             console.log(`${process.platform} rsync: ${sourcePath} -> ${destPath}`);
             return await (new Promise((res, rej) => {
-                sync.execute((err: string) => {
-                    if (err) {
-                        rej(err);
-                    }
-                    else {
-                        res(true);
-                    }
-                });
+                childProcess.execFile('rsync',
+                    ['-rl', '-o', '--usermap="*:mobile"', '--delete', sourcePath, destPath],
+                    (err: string) => {
+                        if (err) {
+                            rej(err);
+                        }
+                        else {
+                            res(true);
+                        }
+                    });
             }));
         }
     }
