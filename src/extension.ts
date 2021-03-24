@@ -25,7 +25,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 		vscode.commands.registerCommand('xenlive-edit.disable', () => {
 			if (client.enabled) {
-				vscode.window.showInformationMessage('XenLive Edit: Disabled.');
 				client.disable();
 			}
 			else {
@@ -33,6 +32,8 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}),
 	];
+
+	client.enableWithFolder(vscode.workspace.workspaceFolders![0].uri);
 
 	context.subscriptions.push(...disposables);
 }
