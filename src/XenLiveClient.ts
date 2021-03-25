@@ -1,31 +1,15 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Socket } from 'net';
+import { Connection } from './Connection';
+import { getRemoteConfig, showError, showInfo, walkPreorder } from './Common';
 
 enum RequestType {
     write  = 0,
     delete = 1,
     createFolder = 2,
     clearFolder = 3,
-}
-
-interface RemoteConfig {
-    deviceIP: string
-    widgetName: string
-    widgetType: string
-}
-
-function showInfo(message: string) {
-    vscode.window.showInformationMessage(`XenLive Edit: ${message}`);
-}
-
-function showError(message: string) {
-    vscode.window.showErrorMessage(`XenLive Edit: ${message}`);
-}
-
-function showWarning(message: string) {
-    vscode.window.showWarningMessage(`XenLive Edit: ${message}`);
+    refresh = 4,
 }
 
 export class XenLiveClient {
@@ -33,114 +17,78 @@ export class XenLiveClient {
     // Properties
     #context: vscode.ExtensionContext;
     #rootFolder?: vscode.Uri;
-    #socket?: Socket;
     #watcher?: vscode.FileSystemWatcher;
     #currentTask?: Promise<void>;
-    #enabled: Boolean = true;
+    #isEnabled: Boolean = true;
+    #connection: Connection;
 
     constructor(context: vscode.ExtensionContext) {
         this.#context = context;
+        this.#connection = new Connection();
     }
 
     // PUBLIC
-    get enabled() {
-        return this.#enabled;
+    get isEnabled() {
+        return this.#isEnabled;
     }
 
     enableWithFolder(rootFolder: vscode.Uri) {
-        this.#enabled = true;
+        this.#isEnabled = true;
         this.#rootFolder = rootFolder;
-        this.createSocket();
+        this.#connection.connect();
         this.startWatching();
         showInfo('Enabled');
     }
     
     disable() {
-        this.#enabled = false;
-        this.destroySocket();
+        this.#isEnabled = false;
+        this.#connection.disconnect();
         this.stopWatching();
         showInfo('Disabled');
     }
 
-    // PRIVATE
-    private sendToRemote(buffer: Buffer): Promise<Boolean> {
-        // if (!this.#socket!.writable) {
-        //     this.createSocket();
-        //     return Promise.reject('Connection lost, reconnecting.');
-        // }
-        return new Promise((res, rej) => {
-            this.#socket!.write(buffer, (error) => {
-                if (error) {
-                    rej(error);
-                }
-                else {
-                    res(true);
-                }
+    forceSyncRemote() {
+        this.stopWatching();
+        vscode.window.withProgress({
+            location : vscode.ProgressLocation.Notification,
+            title : "Syncing to Remote",
+            cancellable : false
+        }, async (progress) => {
+            progress.report({
+                message : 'cleaning remote...'
             });
-        });
-    };      
-
-    private getRemoteConfig(): RemoteConfig {
-        // Get config and validate.
-        const remoteConfig: any = vscode.workspace.getConfiguration('xenlive-edit').get('remote');
-        if (remoteConfig.deviceIP.length === 0) {
-            throw new Error('Device IP not set!');
-        }
-        else if (remoteConfig.widgetName.length === 0) {
-            throw new Error('Widget name not set!');
-        }
-        else if (remoteConfig.widgetType.length === 0) {
-            throw new Error('Widget type not set!');
-        }
-        return remoteConfig;
-    }
-
-    // SOCKET
-    private createSocket() {
-        const remoteConfig = this.getRemoteConfig();
-        this.#socket = new Socket();
-        this.#socket.connect(2021, remoteConfig.deviceIP);
-        let reconnectToken: NodeJS.Timeout;
-        this.#socket.on('connect', () => {
-            showInfo('Connected to device');
-            if (reconnectToken) {
-                clearTimeout(reconnectToken);
+            try {
+                // First clean remote.
+                await this.sendRequestWrapped(RequestType.clearFolder, this.#rootFolder!);
+                let paths = [];
+                // We perform pre-order traversal of current root folder,
+                // creating folders before transfering their items.
+                // We first collect the paths for progress displaying.
+                for await (const path of walkPreorder(this.#rootFolder!.path)) {
+                    paths.push(path);
+                }
+                let cnt = 0;
+                for (const [p, isDirectory] of paths) {
+                    await this.sendRequestWrapped(isDirectory ? RequestType.createFolder:RequestType.write, vscode.Uri.file(p));
+                    cnt += 1;
+                    progress.report({
+                        message : `uploading ${p}`,
+                        increment : cnt / paths.length
+                    });
+                }
+                // Finally do refresh.
+                await this.sendRequestWrapped(RequestType.refresh, this.#rootFolder!);
+            }
+            finally {
+                this.startWatching();
             }
         });
-        this.#socket.on('error', (error) => showError(`Socket error: ${error}`));
-        this.#socket.on('end', () => {
-            // If still enabled, try to reconnect.
-            if (this.#enabled) {
-                showWarning('Disconnected from device, trying to reconnect.');
-                // Attempt to reconnect every second.
-                reconnectToken = setInterval(() => {
-                    if (!this.#socket!.connecting) {
-                        this.#socket!.connect(2021, remoteConfig.deviceIP);
-                    }
-                }, 1000);
-            }
-        });
+        showInfo('Remote sync completed!');
     }
-
-    private destroySocket() {
-        this.#socket!.end();
-        this.#socket = undefined;
-    }
-
-    // async forceSyncRemote() {
-    //     // First clean remote.
-    //     await this.sendRequest(RequestType.deleteNoReload, this.#rootFolder!);
-    //     // Next send all files to remote in sequence.
-    //     const allFiles = await vscode.workspace.findFiles('**/*');
-    //     for (const file of allFiles) {
-            
-    //     }
-    //     vscode.window.showInformationMessage('XenLive Edit: Remote sync completed!');
-    // }
 
     private async sendRequest(type: RequestType, uri: vscode.Uri) {
-        const remoteConfig = this.getRemoteConfig();
         // 1. Send header.
+        const remoteConfig = getRemoteConfig();
         // Write Header
         const widgetName = remoteConfig.widgetName;
         const widgetType = remoteConfig.widgetType;
@@ -154,44 +102,46 @@ export class XenLiveClient {
         requestHeader.writeUInt32LE(widgetType.length, 12);
         requestHeader.writeUInt32LE(fileRelPath.length, 16);
         requestHeader.writeUInt32LE(fileContent.length, 20);
-        await this.sendToRemote(requestHeader);
+        await this.#connection.send(requestHeader);
         // 2. Send body.
         const requestBody = Buffer.concat([Buffer.from(widgetName), Buffer.from(widgetType), Buffer.from(fileRelPath), fileContent]);
-        await this.sendToRemote(requestBody);
+        await this.#connection.send(requestBody);
+    }
+
+    // A wrapper for this.sendRequest that handles its errors.
+    // It also enforces linear execution with a trick from:
+    // https://stackoverflow.com/a/53540586
+    private sendRequestWrapped(type: RequestType, uri: vscode.Uri) {
+        // Package the actions as an async block.
+        const run = async () => {
+            // When run, it awaits the current task.
+            await this.#currentTask;
+            try {
+                await this.sendRequest(type, uri);
+            }
+            catch (error) {
+                showError(`Connection Error: ${error.message}`);
+            }
+        };
+        // We update the current task to be this block, 
+        // forming a linked list of async blocks awaiting their ancestor.
+        this.#currentTask = run();
+        return this.#currentTask;
     }
 
     private startWatching () {
         // Init watcher on all files.
         this.#watcher = vscode.workspace.createFileSystemWatcher(`${this.#rootFolder!.path}/**/*`, false, false, false);
-        // A wrapper for this.sendRequest that handles its errors.
-        // Also, it enforces linear execution with a trick from:
-        // https://stackoverflow.com/a/53540586
-        const addTask = (type: RequestType, uri: vscode.Uri) => {
-            // Package the actions as an async block.
-            const run = async () => {
-                // When run, it awaits the current task.
-                await this.#currentTask;
-                try {
-                    await this.sendRequest(type, uri);
-                }
-                catch (error) {
-                    showError(`Connection Error: ${error.message}`);
-                }
-            };
-            // We update the current task to be this block, 
-            // forming a linked list of async blocks awaiting their ancestor.
-            this.#currentTask = run();
-        };
         // Events.
-        this.#watcher.onDidChange(async uri => {
-            addTask(RequestType.write, uri);
+        this.#watcher.onDidChange(uri => {
+            this.sendRequestWrapped(RequestType.write, uri);
         });
-        this.#watcher.onDidCreate(async uri => {
+        this.#watcher.onDidCreate(uri => {
             const isDirectory = fs.lstatSync(uri.path).isDirectory();
-            addTask(isDirectory ? RequestType.createFolder:RequestType.write, uri);
+            this.sendRequestWrapped(isDirectory ? RequestType.createFolder:RequestType.write, uri);
         });
-        this.#watcher.onDidDelete(async uri => {
-            addTask(RequestType.delete, uri);
+        this.#watcher.onDidDelete(uri => {
+            this.sendRequestWrapped(RequestType.delete, uri);
         });
         this.#context.subscriptions.push(this.#watcher);
     }

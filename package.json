@@ -26,6 +26,10 @@
       {
         "command": "xenlive-edit.disable",
         "title": "XenLive Edit: Disable"
+      },
+      {
+        "command": "xenlive-edit.forceSyncRemote",
+        "title": "XenLive Edit: Force Sync Remote"
       }
     ],
     "configuration": {
@@ -50,10 +54,6 @@
             "Universal"
           ],
           "default": "Universal"
-        },
-        "xenlive-edit.local.cwrsyncBinPath": {
-          "type" : "string",
-          "description": "Path to the bin folder of cwrsync (Required for Windows)."
         }
       }
     }
