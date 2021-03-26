@@ -19,7 +19,7 @@ export class XenLiveClient {
     #rootFolder?: vscode.Uri;
     #watcher?: vscode.FileSystemWatcher;
     #currentTask?: Promise<void>;
-    #isEnabled: Boolean = true;
+    #isEnabled: Boolean = false;
     #connection: Connection;
 
     constructor(context: vscode.ExtensionContext) {
@@ -64,7 +64,7 @@ export class XenLiveClient {
                 // We perform pre-order traversal of current root folder,
                 // creating folders before transfering their items.
                 // We first collect the paths for progress displaying.
-                for await (const path of walkPreorder(this.#rootFolder!.path)) {
+                for await (const path of walkPreorder(this.#rootFolder!.fsPath)) {
                     paths.push(path);
                 }
                 let cnt = 0;
@@ -79,6 +79,9 @@ export class XenLiveClient {
                 // Finally do refresh.
                 await this.sendRequestWrapped(RequestType.refresh, this.#rootFolder!);
             }
+            catch (error) {
+                showError(`Sync Error: ${error}`);
+            }
             finally {
                 this.startWatching();
             }
@@ -92,7 +95,7 @@ export class XenLiveClient {
         // Write Header
         const widgetName = remoteConfig.widgetName;
         const widgetType = remoteConfig.widgetType;
-        const fileRelPath = path.relative(this.#rootFolder!.path, uri.path);
+        const fileRelPath = path.relative(this.#rootFolder!.path, uri.path).replace(path.sep, '/');
         const fileContent = type === RequestType.write ? fs.readFileSync(uri.fsPath):Buffer.alloc(0);
         const requestHeader = Buffer.alloc(24);
         // iOS uses LE.
@@ -131,13 +134,13 @@ export class XenLiveClient {
 
     private startWatching () {
         // Init watcher on all files.
-        this.#watcher = vscode.workspace.createFileSystemWatcher(`${this.#rootFolder!.path}/**/*`, false, false, false);
+        this.#watcher = vscode.workspace.createFileSystemWatcher(`${this.#rootFolder!.fsPath}/**/*`, false, false, false);
         // Events.
         this.#watcher.onDidChange(uri => {
             this.sendRequestWrapped(RequestType.write, uri);
         });
         this.#watcher.onDidCreate(uri => {
-            const isDirectory = fs.lstatSync(uri.path).isDirectory();
+            const isDirectory = fs.lstatSync(uri.fsPath).isDirectory();
             this.sendRequestWrapped(isDirectory ? RequestType.createFolder:RequestType.write, uri);
         });
         this.#watcher.onDidDelete(uri => {

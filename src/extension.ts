@@ -43,8 +43,6 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	];
 
-	client.enableWithFolder(vscode.workspace.workspaceFolders![0].uri);
-
 	context.subscriptions.push(...disposables);
 }
 
