@@ -6,7 +6,7 @@
   "name": "xenlive-edit",
   "displayName": "xenlive-edit",
   "description": "Client extension that communciates with XenLive on your iOS device.",
-  "version": "1.0.1",
+  "version": "1.1.0-beta1",
   "engines": {
     "vscode": "^1.1.0"
   },
