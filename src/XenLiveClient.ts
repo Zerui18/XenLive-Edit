@@ -120,9 +120,6 @@ export class XenLiveClient {
         // 2. Send body.
         const requestBody = Buffer.concat([Buffer.from(widgetName), Buffer.from(widgetType), Buffer.from(fileRelPath), fileContent]);
         await this.#connection.send(requestBody);
-        // if (uri.path.includes('JavaScript')) {
-        //     console.log(`sent request for file: ${fileRelPath}`);
-        // }
     }
 
     // A wrapper for this.sendRequest that handles its errors.
