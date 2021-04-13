@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import { showError, showWarning } from './Common';
 import { XenLiveClient } from './XenLiveClient';
+import { Logger } from './Logger';
 
 export function activate(context: vscode.ExtensionContext) {
 
+	Logger.initializeLogger(context);
 	const client = new XenLiveClient(context);
 
 	const disposables = [

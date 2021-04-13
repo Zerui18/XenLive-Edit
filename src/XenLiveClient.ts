@@ -3,13 +3,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Connection } from './Connection';
 import { getRemoteConfig, showError, showInfo, walkPreorder } from './Common';
+import { Logger, NamedLogger } from './Logger';
 
 enum RequestType {
-    write  = 0,
-    delete = 1,
-    createFolder = 2,
-    clearFolder = 3,
-    refresh = 4,
+    connect = 0,
+    write  = 1,
+    delete = 2,
+    createFolder = 3,
+    clearFolder = 4,
+    refresh = 5,
+    restart = 6,
 }
 
 export class XenLiveClient {
@@ -21,10 +24,12 @@ export class XenLiveClient {
     #currentTask?: Promise<void>;
     #isEnabled: Boolean = false;
     #connection: Connection;
+    #logger: NamedLogger;
 
     constructor(context: vscode.ExtensionContext) {
         this.#context = context;
         this.#connection = new Connection();
+        this.#logger = Logger.shared.createNamedLogger('Client');
     }
 
     // PUBLIC
@@ -120,6 +125,7 @@ export class XenLiveClient {
         // 2. Send body.
         const requestBody = Buffer.concat([Buffer.from(widgetName), Buffer.from(widgetType), Buffer.from(fileRelPath), fileContent]);
         await this.#connection.send(requestBody);
+        this.#logger.logInfo(`Sent request of type ${type} with widgetName: ${widgetName}, widgetType: ${widgetType}, fileRelPath: ${fileRelPath}, fileContentLength: ${fileContent.length}`);
     }
 
     // A wrapper for this.sendRequest that handles its errors.
@@ -129,12 +135,16 @@ export class XenLiveClient {
         // Package the actions as an async block.
         const run = async () => {
             // When run, it awaits the current task.
-            await this.#currentTask;
+            if (this.#currentTask) {
+                this.#logger.logInfo('Chaining to current task.');
+                await this.#currentTask;
+            }
             try {
                 await this.sendRequest(type, uri, performRefresh);
             }
             catch (error) {
                 showError(`Connection Error: ${error.message}`);
+                this.#logger.logError(`Connection Error: ${error.message}`);
             }
         };
         // We update the current task to be this block, 
@@ -144,17 +154,21 @@ export class XenLiveClient {
     }
 
     private startWatching () {
+        this.#logger.logInfo('Started Watching');
         // Init watcher on all files.
         this.#watcher = vscode.workspace.createFileSystemWatcher(`${this.#rootFolder!.fsPath}/**/*`, false, false, false);
         // Events.
         this.#watcher.onDidChange(uri => {
+            this.#logger.logInfo('onDidChange: ' + uri.path);
             this.sendRequestWrapped(RequestType.write, uri, true);
         });
         this.#watcher.onDidCreate(uri => {
+            this.#logger.logInfo('onDidCreate: ' + uri.path);
             const isDirectory = fs.lstatSync(uri.fsPath).isDirectory();
             this.sendRequestWrapped(isDirectory ? RequestType.createFolder:RequestType.write, uri, true);
         });
         this.#watcher.onDidDelete(uri => {
+            this.#logger.logInfo('onDidDelete: ' + uri.path);
             this.sendRequestWrapped(RequestType.delete, uri, true);
         });
         this.#context.subscriptions.push(this.#watcher);
