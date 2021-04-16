@@ -1,29 +1,27 @@
 import { Socket } from 'net';
-import { getRemoteConfig, showError, showInfo, showWarning } from './Common';
+import { showError, showInfo, showWarning } from './Common';
 import { Logger, NamedLogger } from './Logger';
 
 export class Connection {
 
+    isConnected = false;
+
     #socket?: Socket;
-    #_isConnected = false;
     #logger: NamedLogger;
     #reconnectToken?: any;
-    shouldAutoReconnect = false;
+    #remoteIP: string;
+    #shouldAutoReconnect = false;
 
-    constructor() {
+    constructor(remoteIP: string) {
+        this.#remoteIP = remoteIP;
         this.#logger = Logger.shared.createNamedLogger('Connection');
         this.#logger.logInfo('Initiated');
     }
-    
-    get isConnected() {
-        return this.#_isConnected;
-    }
-    
-    set isConnected(flag) {
-        this.#_isConnected = flag;
-    }
 
     send(buffer: Buffer): Promise<Boolean> {
+        if (!this.isConnected) {
+            return Promise.reject('Not connected to device.');
+        }
         return new Promise((res, rej) => {
             this.#socket!.write(buffer, (error) => {
                 if (error) {
@@ -40,12 +38,13 @@ export class Connection {
         if (this.#socket) {
             this.destroySocket();
         }
-        this.shouldAutoReconnect = true;
+        this.#shouldAutoReconnect = true;
         this.createSocket();
     }
 
     disconnect() {
-        this.shouldAutoReconnect = false;
+        this.#shouldAutoReconnect = false;
+        clearInterval(this.#reconnectToken);
         this.destroySocket();
     }
     
@@ -57,43 +56,45 @@ export class Connection {
     }
 
     private createSocket() {
-        this.#logger.logInfo('Creating socket.');
+        this.#logger.logInfo('Creating socket');
         try {
-            const remoteConfig = getRemoteConfig();
             this.#socket = new Socket();
-            this.#socket.connect(2021, remoteConfig.deviceIP);
+            this.#socket.connect(2021, this.#remoteIP);
 
             this.#socket.on('connect', () => {
+                this.isConnected = true;
                 showInfo('Connected to device');
-                this.#logger.logInfo(`Connected to device with config: ${JSON.stringify(remoteConfig)}`);
+                this.#logger.logInfo(`Connected to device at: ${JSON.stringify(this.#remoteIP)}`);
                 if (this.#reconnectToken) {
-                    clearTimeout(this.#reconnectToken);
+                    clearInterval(this.#reconnectToken);
                     this.#reconnectToken = undefined;
                 }
             });
 
             const autoReconnect = () => {
-                if (this.shouldAutoReconnect && !this.#reconnectToken) {
+                if (this.#shouldAutoReconnect && !this.#reconnectToken) {
                     showWarning('Disconnected from device, trying to reconnect.');
                     this.#logger.logError(`Auto-reconnecting.`);
                     // Attempt to reconnect every second.
                     this.#reconnectToken = setInterval(() => {
                         if (!this.#socket!.connecting) {
-                            this.#socket!.connect(2021, remoteConfig.deviceIP);
+                            this.#socket!.connect(2021, this.#remoteIP);
                         }
                     }, 1000);
                 }
             };
 
             this.#socket.on('error', (error) => {
+                this.isConnected = false;
                 showError(`Socket Error: ${error.message}`);
                 this.#logger.logError(`Socket Error: ${error.message}`);
                 autoReconnect();
             });
 
             this.#socket.on('end', () => {
+                this.isConnected = false;
                 if (this.#reconnectToken) {
-                    clearTimeout(this.#reconnectToken);
+                    clearInterval(this.#reconnectToken);
                     this.#reconnectToken = undefined;
                 }
                 autoReconnect();

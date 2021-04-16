@@ -6,7 +6,7 @@
   "name": "xenlive-edit",
   "displayName": "xenlive-edit",
   "description": "Client extension that communciates with XenLive on your iOS device.",
-  "version": "1.1.0-beta3",
+  "version": "1.1.1",
   "engines": {
     "vscode": "^1.1.0"
   },
@@ -54,6 +54,11 @@
             "Universal"
           ],
           "default": "Universal"
+        },
+        "xenlive-edit.local.excludePatterns": {
+          "type": "string",
+          "description": "Glob pattern(s) of files to exclude from syncing, separate multiple patterns with '||'.",
+          "default": ".vscode/**||**/.DSStore"
         }
       }
     }
@@ -79,5 +84,7 @@
     "typescript": "^4.1.3",
     "vscode-test": "^1.5.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "micromatch": "^4.0.4"
+  }
 }

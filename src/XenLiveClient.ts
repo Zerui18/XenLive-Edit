@@ -2,8 +2,9 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Connection } from './Connection';
-import { getRemoteConfig, showError, showInfo, walkPreorder } from './Common';
+import { showError, showInfo, walkPreorder } from './Common';
 import { Logger, NamedLogger } from './Logger';
+import { Configuration } from './Configuration';
 
 enum RequestType {
     connect = 0,
@@ -17,18 +18,27 @@ enum RequestType {
 
 export class XenLiveClient {
 
-    // Properties
+    static shared: XenLiveClient;
+
+    static initialize(context: vscode.ExtensionContext) {
+        this.shared = new XenLiveClient(context);
+    }
+
+    // PROPERTIES
     #context: vscode.ExtensionContext;
+    #isEnabled: Boolean = false;
+    #logger: NamedLogger;
+
+    // Only valid when isEnabled.
     #rootFolder?: vscode.Uri;
     #watcher?: vscode.FileSystemWatcher;
     #currentTask?: Promise<void>;
-    #isEnabled: Boolean = false;
-    #connection: Connection;
-    #logger: NamedLogger;
+
+    #configuration?: Configuration;
+    #connection?: Connection;
 
     constructor(context: vscode.ExtensionContext) {
         this.#context = context;
-        this.#connection = new Connection();
         this.#logger = Logger.shared.createNamedLogger('Client');
     }
 
@@ -37,18 +47,27 @@ export class XenLiveClient {
         return this.#isEnabled;
     }
 
+    // This method may throw errors.
     enableWithFolder(rootFolder: vscode.Uri) {
-        this.#isEnabled = true;
         this.#rootFolder = rootFolder;
+        this.#configuration = new Configuration(this.#context, rootFolder, (deviceIP) => {
+            if (this.#isEnabled) {
+                this.#connection?.disconnect();
+                this.#connection = new Connection(deviceIP);
+                this.#connection.connect();
+            }
+        });
+        this.#connection = new Connection(this.#configuration.getConfig().remote.deviceIP);
         this.#connection.connect();
         this.startWatching();
+        this.#isEnabled = true;
         showInfo('Enabled');
     }
     
     disable() {
-        this.#isEnabled = false;
-        this.#connection.disconnect();
+        this.#connection!.disconnect();
         this.stopWatching();
+        this.#isEnabled = false;
         showInfo('Disabled');
     }
 
@@ -69,7 +88,8 @@ export class XenLiveClient {
                 // We perform pre-order traversal of current root folder,
                 // creating folders before transfering their items.
                 // We first collect the paths for progress displaying.
-                for await (const path of walkPreorder(this.#rootFolder!.fsPath)) {
+                const localConfig = this.#configuration!.getConfig().local;
+                for await (const path of walkPreorder(this.#rootFolder!.fsPath, localConfig)) {
                     paths.push(path);
                 }
                 let cnt = 0;
@@ -94,9 +114,15 @@ export class XenLiveClient {
         });
     }
 
+    // PRIVATE METHODS
+
     private async sendRequest(type: RequestType, uri: vscode.Uri, performRefresh: Boolean) {
+        const config = this.#configuration!.getConfig();
+        if (config.local.shouldExclude(uri.fsPath)) {
+            return;
+        }
         // 1. Send header.
-        const remoteConfig = getRemoteConfig();
+        const remoteConfig = config.remote;
         // Write Header
         // Note we convert all strings to buffers so later .length returns truthful bytes count, not utf8 characters count.
         const widgetName = Buffer.from(remoteConfig.widgetName);
@@ -121,10 +147,10 @@ export class XenLiveClient {
         // First bit is perform_refresh.
         const options = performRefresh ? 1 : 0;
         requestHeader.writeUInt32LE(options, 24);
-        await this.#connection.send(requestHeader);
+        await this.#connection!.send(requestHeader);
         // 2. Send body.
         const requestBody = Buffer.concat([Buffer.from(widgetName), Buffer.from(widgetType), Buffer.from(fileRelPath), fileContent]);
-        await this.#connection.send(requestBody);
+        await this.#connection!.send(requestBody);
         this.#logger.logInfo(`Sent request of type ${type} with widgetName: ${widgetName}, widgetType: ${widgetType}, fileRelPath: ${fileRelPath}, fileContentLength: ${fileContent.length}`);
     }
 
@@ -136,7 +162,6 @@ export class XenLiveClient {
         const run = async () => {
             // When run, it awaits the current task.
             if (this.#currentTask) {
-                this.#logger.logInfo('Chaining to current task.');
                 await this.#currentTask;
             }
             try {

@@ -4,7 +4,7 @@ export class Logger {
 
     static shared: Logger;
 
-    static initializeLogger(context: vscode.ExtensionContext) {
+    static initialize(context: vscode.ExtensionContext) {
         this.shared = new Logger(context);
     }
 

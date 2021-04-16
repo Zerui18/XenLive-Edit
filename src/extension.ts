@@ -5,12 +5,12 @@ import { Logger } from './Logger';
 
 export function activate(context: vscode.ExtensionContext) {
 
-	Logger.initializeLogger(context);
-	const client = new XenLiveClient(context);
+	Logger.initialize(context);
+	XenLiveClient.initialize(context);
 
 	const disposables = [
 		vscode.commands.registerCommand('xenlive-edit.enable', () => {
-			if (client.isEnabled) {
+			if (XenLiveClient.shared.isEnabled) {
 				showWarning('Already enabled.');
 				return;
 			}
@@ -22,13 +22,18 @@ export function activate(context: vscode.ExtensionContext) {
 				showError('Only editing a single folder is supported, please close all other folders in this workspace.');
 			}
 			else {
-				client.enableWithFolder(folders[0].uri);
+				try {
+					XenLiveClient.shared.enableWithFolder(folders[0].uri);
+				}
+				catch (error) {
+					showError(`Could not enable XenLive: ${error.message}`);
+				}
 			}
 		}),
 
 		vscode.commands.registerCommand('xenlive-edit.disable', () => {
-			if (client.isEnabled) {
-				client.disable();
+			if (XenLiveClient.shared.isEnabled) {
+				XenLiveClient.shared.disable();
 			}
 			else {
 				showWarning('Not enabled.');
@@ -36,8 +41,8 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 
 		vscode.commands.registerCommand('xenlive-edit.forceSyncRemote', () => {
-			if (client.isEnabled) {
-				client.forceSyncRemote();
+			if (XenLiveClient.shared.isEnabled) {
+				XenLiveClient.shared.forceSyncRemote();
 			}
 			else {
 				showError('Not enabled.');
