@@ -63,7 +63,6 @@ export class Connection {
         try {
             this.#socket = new Socket();
             this.#socket.connect(2021, this.#remoteIP);
-            this.#socket.setKeepAlive(true, 3000);
 
             this.#socket.on('connect', () => {
                 this.isConnected = true;

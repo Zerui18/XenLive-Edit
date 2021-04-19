@@ -57,7 +57,7 @@
         },
         "xenlive-edit.local.excludePatterns": {
           "type": "string",
-          "description": "Glob pattern(s) of files to exclude from syncing, separate multiple patterns with a comma without spaces.",
+          "description": "Glob pattern(s) of files to exclude from syncing, separate multiple patterns with a comma without spaces. If you wish to exclude a folder, add a / at the end of its pattern. For Windows users, use / instead of \\.",
           "default": ".vscode/,**/.DS_Store"
         }
       }
