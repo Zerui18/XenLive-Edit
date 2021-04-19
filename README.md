@@ -29,9 +29,10 @@ The following 4 settings are required for XenLive-Edit:
 **The following 1 setting is recommended to be set at `User` level, which is shared among all workspaces.**
 * `xenlive-edit.remote.deviceIP`: The IPv4 address through which this computer can access your phone.
 
-**The following 2 settings should only be set at `Workspace` level, as they should be unique for each workspace.**
+**The following 3 settings should only be set at `Workspace` level, as they should be unique for each workspace.**
 * `xenlive-edit.remote.widgetName`: The name of the widget being edited.
 * `xenlive-edit.remote.widgetType`: The type of the widget being edited.
+* `xenlive-edit.local.excludePatterns`: The files/folders to be ignored (`glob` patterns supported, similar to `.gitignore`), separate multiple patterns with `||`.
 
 # Take Note
 
@@ -85,9 +86,10 @@ XenLive会在启用的文件夹内任意文件保存时与iOS端进行同步。
 **推荐在`用户`等级设置以下1条，从而对所有工作区生效**
 * `xenlive-edit.remote.deviceIP`: iOS设备的IPv4地址。
 
-**仅在`工作区`等级设置以下2条。**
+**仅在`工作区`等级设置以下3条。**
 * `xenlive-edit.remote.widgetName`: 此工作区编辑的Widget的名称。
 * `xenlive-edit.remote.widgetType`: 此工作区编辑的Widget的类别。
+* `xenlive-edit.local.excludePatterns`: 此工作区因忽略的文件/文件夹（可用`glob`格式，类似`.gitignore`），用`||`分开多个模式。
 
 # 注意
 

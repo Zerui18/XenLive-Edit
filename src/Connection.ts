@@ -1,5 +1,5 @@
 import { Socket } from 'net';
-import { showError, showInfo, showWarning } from './Common';
+import { ConnectionStatus, updateConnectionStatus, updateErrorStatus } from './Status';
 import { Logger, NamedLogger } from './Logger';
 
 export class Connection {
@@ -52,18 +52,23 @@ export class Connection {
         return new Promise((res) => {
             this.#socket!.end(() => res(true));
             this.#socket = undefined;
+            updateConnectionStatus(ConnectionStatus.none, this.#remoteIP);
         });
     }
 
     private createSocket() {
         this.#logger.logInfo('Creating socket');
+        updateConnectionStatus(ConnectionStatus.connecting, this.#remoteIP);
+        
         try {
             this.#socket = new Socket();
             this.#socket.connect(2021, this.#remoteIP);
+            this.#socket.setKeepAlive(true, 3000);
 
             this.#socket.on('connect', () => {
                 this.isConnected = true;
-                showInfo('Connected to device');
+                updateConnectionStatus(ConnectionStatus.connected, this.#remoteIP);
+                updateErrorStatus();
                 this.#logger.logInfo(`Connected to device at: ${JSON.stringify(this.#remoteIP)}`);
                 if (this.#reconnectToken) {
                     clearInterval(this.#reconnectToken);
@@ -73,8 +78,9 @@ export class Connection {
 
             const autoReconnect = () => {
                 if (this.#shouldAutoReconnect && !this.#reconnectToken) {
-                    showWarning('Disconnected from device, trying to reconnect.');
-                    this.#logger.logError(`Auto-reconnecting.`);
+                    updateConnectionStatus(ConnectionStatus.connecting, this.#remoteIP);
+                    updateErrorStatus();
+                    this.#logger.logInfo(`Auto-reconnecting.`);
                     // Attempt to reconnect every second.
                     this.#reconnectToken = setInterval(() => {
                         if (!this.#socket!.connecting) {
@@ -86,7 +92,8 @@ export class Connection {
 
             this.#socket.on('error', (error) => {
                 this.isConnected = false;
-                showError(`Socket Error: ${error.message}`);
+                updateConnectionStatus(ConnectionStatus.connecting, this.#remoteIP);
+                updateErrorStatus('Connection Error', error.message);
                 this.#logger.logError(`Socket Error: ${error.message}`);
                 autoReconnect();
             });
@@ -101,7 +108,7 @@ export class Connection {
             });
         }
         catch (error) {
-            showError(`Settings Error: ${error}`);
+            updateErrorStatus('Connection Error', error.message);
         }
     }
 }

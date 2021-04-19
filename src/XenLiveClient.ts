@@ -2,9 +2,10 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Connection } from './Connection';
-import { showError, showInfo, walkPreorder } from './Common';
+import { walkPreorder } from './Common';
 import { Logger, NamedLogger } from './Logger';
 import { Configuration } from './Configuration';
+import { showErrorMessage, showInfoMessage, updateErrorStatus } from './Status';
 
 enum RequestType {
     connect = 0,
@@ -61,14 +62,12 @@ export class XenLiveClient {
         this.#connection.connect();
         this.startWatching();
         this.#isEnabled = true;
-        showInfo('Enabled');
     }
     
     disable() {
         this.#connection!.disconnect();
         this.stopWatching();
         this.#isEnabled = false;
-        showInfo('Disabled');
     }
 
     forceSyncRemote() {
@@ -103,10 +102,10 @@ export class XenLiveClient {
                 }
                 // Finally send an explicit refresh request.
                 await this.sendRequestWrapped(RequestType.refresh, this.#rootFolder!, false);
-                showInfo('Remote sync completed!');
+                showInfoMessage('Remote sync completed!');
             }
             catch (error) {
-                showError(`Sync Error: ${error}`);
+                showErrorMessage(`Sync Error: ${error}`);
             }
             finally {
                 this.startWatching();
@@ -118,7 +117,8 @@ export class XenLiveClient {
 
     private async sendRequest(type: RequestType, uri: vscode.Uri, performRefresh: Boolean) {
         const config = this.#configuration!.getConfig();
-        if (config.local.shouldExclude(uri.fsPath)) {
+        if (config.local.shouldExclude(uri)) {
+            this.#logger.logInfo(`Ignoring ${uri} due to exclude pattern.`);
             return;
         }
         // 1. Send header.
@@ -168,8 +168,7 @@ export class XenLiveClient {
                 await this.sendRequest(type, uri, performRefresh);
             }
             catch (error) {
-                showError(`Connection Error: ${error.message}`);
-                this.#logger.logError(`Connection Error: ${error.message}`);
+                this.#logger.logError(`Request Error: ${error.message}`);
             }
         };
         // We update the current task to be this block, 
@@ -179,27 +178,25 @@ export class XenLiveClient {
     }
 
     private startWatching () {
-        this.#logger.logInfo('Started Watching');
         // Init watcher on all files.
         this.#watcher = vscode.workspace.createFileSystemWatcher(`${this.#rootFolder!.fsPath}/**/*`, false, false, false);
         // Events.
         this.#watcher.onDidChange(uri => {
-            this.#logger.logInfo('onDidChange: ' + uri.path);
             this.sendRequestWrapped(RequestType.write, uri, true);
         });
         this.#watcher.onDidCreate(uri => {
-            this.#logger.logInfo('onDidCreate: ' + uri.path);
             const isDirectory = fs.lstatSync(uri.fsPath).isDirectory();
             this.sendRequestWrapped(isDirectory ? RequestType.createFolder:RequestType.write, uri, true);
         });
         this.#watcher.onDidDelete(uri => {
-            this.#logger.logInfo('onDidDelete: ' + uri.path);
             this.sendRequestWrapped(RequestType.delete, uri, true);
         });
         this.#context.subscriptions.push(this.#watcher);
+        this.#logger.logInfo(`Created filesystem watcher at ${this.#rootFolder!}`);
     }
 
     private stopWatching () {
         this.#watcher?.dispose();
+        this.#logger.logInfo('Removed filesystem watcher.');
     }
 }

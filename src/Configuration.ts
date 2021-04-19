@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { Logger, NamedLogger } from './Logger';
-import { showError } from './Common';
 
 const micromatch = require('micromatch');
 
@@ -28,27 +26,26 @@ export class RemoteConfig {
 }
 
 export class LocalConfig {
-    excludePatterns: string[];
+    excludePatterns?: string[];
+    #rootFolder: vscode.Uri;
 
     constructor(config: any, rootFolder: vscode.Uri) {
         const trimmed = config.excludePatterns.trim();
-        if (trimmed.length > 0) {
-            this.excludePatterns = trimmed.split('||').map((relPathMaybe: string) => {
-                // Convert rel paths to abs paths for glob to work properly.
-                if (path.isAbsolute(relPathMaybe)) {
-                    return relPathMaybe;
-                }
-                return path.join(rootFolder.fsPath, relPathMaybe);
-            });
-            console.log('exclude patterns: ', this.excludePatterns);
-        }
-        else {
-            this.excludePatterns = [];
-        }
+        this.excludePatterns = trimmed.length > 0 ? trimmed.split(','):[];
+        // Fix up the patterns.
+        this.excludePatterns = this.excludePatterns!.map(pattern => {
+            // For performance reasons, take pattern as a directory IFF it ends with '/'.
+            let newPattern = pattern.endsWith('/') ? pattern+'**':pattern;
+            // Also normalise relative paths (remove './' which interferes with glob).
+            return newPattern.startsWith('./') ? newPattern.slice(2):newPattern;
+        });
+        this.#rootFolder = rootFolder;
     }
 
-    shouldExclude(path: string): Boolean {
-        const ret = this.excludePatterns.length > 0 && micromatch.isMatch(path, this.excludePatterns);
+    shouldExclude(file: vscode.Uri): Boolean {
+        // We attempt to match the path of the file relative to the rootFolder with each pattern.
+        const relPath = path.relative(this.#rootFolder.path, file.path);
+        const ret = this.excludePatterns && micromatch.isMatch(relPath, this.excludePatterns);
         return ret;
     }
 }

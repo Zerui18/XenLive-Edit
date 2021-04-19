@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { showError, showWarning } from './Common';
 import { XenLiveClient } from './XenLiveClient';
 import { Logger } from './Logger';
+import { showErrorMessage } from './Status';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -11,22 +11,21 @@ export function activate(context: vscode.ExtensionContext) {
 	const disposables = [
 		vscode.commands.registerCommand('xenlive-edit.enable', () => {
 			if (XenLiveClient.shared.isEnabled) {
-				showWarning('Already enabled.');
 				return;
 			}
 			const folders = vscode.workspace.workspaceFolders;
 			if (!folders) {
-				showError("Please open the widget's folder first!");
+				showErrorMessage("Please open the widget's folder first!");
 			}
 			else if (folders.length > 1) {
-				showError('Only editing a single folder is supported, please close all other folders in this workspace.');
+				showErrorMessage('Only editing a single folder is supported, please close all other folders in this workspace.');
 			}
 			else {
 				try {
 					XenLiveClient.shared.enableWithFolder(folders[0].uri);
 				}
 				catch (error) {
-					showError(`Could not enable XenLive: ${error.message}`);
+					showErrorMessage(`Could not enable XenLive: ${error.message}`);
 				}
 			}
 		}),
@@ -36,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
 				XenLiveClient.shared.disable();
 			}
 			else {
-				showWarning('Not enabled.');
+				showErrorMessage('Not enabled.');
 			}
 		}),
 
@@ -45,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
 				XenLiveClient.shared.forceSyncRemote();
 			}
 			else {
-				showError('Not enabled.');
+				showErrorMessage('Not enabled.');
 			}
 		})
 	];
