@@ -20,9 +20,6 @@ XenLive syncs the changes to your device when you save the file.
 
 To find the settings for this extension, open VSCode's settings page and search for `xenlive`, you can then choose to edit them in `User` or `Workspace` scope. Read more about VSCode settings from the [official documentation](https://code.visualstudio.com/docs/getstarted/settings).
 
-![Settings Screenshot](ss_settings.png)
-<i>xenlive-edit Settings</i>
-
 <br>
 The following 4 settings are required for XenLive-Edit:
 
@@ -32,27 +29,19 @@ The following 4 settings are required for XenLive-Edit:
 **The following 3 settings should only be set at `Workspace` level, as they should be unique for each workspace.**
 * `xenlive-edit.remote.widgetName`: The name of the widget being edited.
 * `xenlive-edit.remote.widgetType`: The type of the widget being edited.
-* `xenlive-edit.local.excludePatterns`: The files/folders to be ignored (`glob` patterns supported, similar to `.gitignore`), separate multiple patterns with `,`. If the pattern specifies a folder, ensure that "/" follows the folder name. For Windows users, use "/" instead of "\" in paths.
+* `xenlive-edit.local.excludePatterns`: The files/folders to be ignored
+  - `glob` patterns are supported, similar to `.gitignore`), separate multiple patterns with ",". If the pattern specifies a folder, ensure that "/" follows the folder name. For Windows users, use "/" instead of "\\" in paths.
 
 # Take Note
 
 XenLive needs to be enabled via the `XenLive Edit: Enable` command everytime a workspace is opened, otherwise nothing would happen.
 
-For a short demo please view [this video](https://www.youtube.com/watch?v=6BxoA_d3xUc).
+For a short demo please view [this video](https://tinyurl.com/xenlive-demo-youtube).
 
-# Known Issues
-
-TBD
+# Issue Reporting
 
 Please report issues at XenLive's [Bug Tracker Repo](https://github.com/Zerui18/XenLive-Issues-Tracker).
 
-# Release Notes
-
-Version | Notes
---- | ---
-*1.0.0* | First release!
-*1.0.1* | Bug fixes.
-*1.1.0-beta1* | Remake, switched from rsync to use custom system.
 
 <br></br>
 <a id="cn"></a>
@@ -89,24 +78,15 @@ XenLive会在启用的文件夹内任意文件保存时与iOS端进行同步。
 **仅在`工作区`等级设置以下3条。**
 * `xenlive-edit.remote.widgetName`: 此工作区编辑的Widget的名称。
 * `xenlive-edit.remote.widgetType`: 此工作区编辑的Widget的类别。
-* `xenlive-edit.local.excludePatterns`: 此工作区应忽略的文件/文件夹（可用`glob`格式，类似`.gitignore`），用`,`分开多个模式。若向指定文件夹，请在文件夹名后加上"/"。Windows用户请使用"/"而非"\"。
+* `xenlive-edit.local.excludePatterns`: 此工作区应忽略的文件/文件夹。
+  - 可用`glob`格式，类似`.gitignore`。用“,”分开多个模式。若想指定文件夹，请在文件夹名后加上"/"。Windows用户请使用"/"而非"\\"。
 
 # 注意
 
 每打开工作区时需重新执行 `XenLive Edit: Enable` 以开启同步。
 
-使用流程请见[短视频](https://www.bilibili.com/video/BV1Sh411Q7NS)。
+使用流程请见[短视频](https://tinyurl.com/xenlive-demo-bilibili)。
 
-# 已知问题
-
-暂无
+# 报告问题
 
 请在 XenLive 专属的 [Bug Tracker Repo](https://github.com/Zerui18/XenLive-Issues-Tracker) 报告.
-
-# 版本日志
-
-版本 | 记录
---- | ---
-*1.0.0* | 第一版发布
-*1.0.1* | 优化
-*1.1.0-beta1* | 重制，从rsync转至自制系统
